@@ -2,6 +2,7 @@
 from pathlib import Path
 from contextlib import contextmanager
 import json
+import os
 import sqlite3
 import uuid
 from threading import Lock
@@ -19,11 +20,20 @@ DEFAULT_SETTINGS = {
 }
 
 
+def default_database():
+    """Use a writable directory on Vercel; the project folder is read-only there."""
+    if os.environ.get('VERCEL'):
+        root = Path('/tmp/cortex')
+    else:
+        root = ROOT / 'data'
+    return root / 'languages.db'
+
+
 def create_app(database=None):
     app = Flask(__name__)
     app.jinja_env.filters['ipa'] = jyutping_to_ipa
     lesson_lock = Lock()
-    app.config['DATABASE'] = str(database or ROOT / 'data' / 'languages.db')
+    app.config['DATABASE'] = str(database or default_database())
     app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
     audio_dir = Path(app.config['DATABASE']).parent / 'audio'
     audio_dir.mkdir(parents=True, exist_ok=True)
@@ -406,5 +416,9 @@ def create_app(database=None):
     return app
 
 
+# Vercel imports this module and requires a top-level Flask instance named app.
+app = create_app()
+
+
 if __name__ == '__main__':
-    create_app().run(host='127.0.0.1', port=5000, debug=False)
+    app.run(host='127.0.0.1', port=5000, debug=False)
