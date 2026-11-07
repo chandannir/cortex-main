@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block title %}{{ tr('lesson_title', language=language) }} · Commonword{% endblock %}
+{% block content %}
+<section class="intro">
+  <p class="eyebrow">Practice</p>
+  <h1>{{ tr('lesson_title', language=language) }}</h1>
+  <p class="lead">{{ tr('lesson_lead') }} · {{ entries|length }} {{ 'entry' if entries|length == 1 else 'entries' }}</p>
+</section>
+
+<div class="toolbar">
+  <a href="{{ url_for('index', language=language) }}">← {{ language }}</a>
+</div>
+
+<div class="lesson-stack">
+  <section class="lesson-block">
+    <h2>{{ tr('create_lesson') }}</h2>
+    {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+    <form method="get" class="contribute" action="{{ url_for('language_lesson', language=language) }}">
+      <label for="level">{{ tr('learner_level') }}</label>
+      <select id="level" name="level" required onchange="this.form.submit()">
+        {% for key, value in levels.items() %}
+        <option value="{{ key }}" {% if key == level %}selected{% endif %}>{{ value[0] }}</option>
+        {% endfor %}
+      </select>
+      <p class="muted">{{ tr('explain_in') }}: <strong>{{ preferred }}</strong> · <a href="{{ url_for('settings_page') }}">{{ tr('nav_settings') }}</a></p>
+      <noscript><button type="submit">Update</button></noscript>
+    </form>
+
+    {% if lesson and not lesson.get('legacy') %}
+      <p class="notice">AI draft · Check details with a speaker before relying on them.</p>
+      <p class="muted">{{ levels[level][0] }} · {{ preferred }}</p>
+      <div class="actions" style="margin-top:0.8rem">
+        <form method="post" action="{{ url_for('delete_language_lesson', language=language) }}" onsubmit="return confirm('Delete this lesson?');">
+          <input type="hidden" name="level" value="{{ level }}">
+          <input type="hidden" name="scope" value="current">
+          <button type="submit" class="danger">Delete this lesson</button>
+        </form>
+        <form method="post" action="{{ url_for('delete_language_lesson', language=language) }}" onsubmit="return confirm('Delete all cached lessons for {{ language }}?');">
+          <input type="hidden" name="level" value="{{ level }}">
+          <input type="hidden" name="scope" value="all">
+          <button type="submit" class="danger">Delete all lessons</button>
+        </form>
+      </div>
+    {% elif lesson and lesson.get('legacy') %}
+      <p class="notice">Older text lesson cached. Generate again for the structured format.</p>
+      <div class="context">{{ lesson.overview }}</div>
+      <form method="post" action="{{ url_for('delete_language_lesson', language=language) }}" onsubmit="return confirm('Delete this lesson?');" style="margin-top:0.8rem">
+        <input type="hidden" name="level" value="{{ level }}">
+        <input type="hidden" name="scope" value="current">
+        <button type="submit" class="danger">Delete this lesson</button>
+      </form>
+    {% elif not entries %}
+      <p class="error" role="alert">{{ tr('no_entries') }}</p>
+    {% else %}
+      <p class="muted">Creates one structured lesson from your collection. No invented source phrases.</p>
+      <form method="post" onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Creating…'">
+        <input type="hidden" name="level" value="{{ level }}">
+        <button class="primary" type="submit">{{ tr('create_practice') }}</button>
+      </form>
+    {% endif %}
+  </section>
+
+  {% if lesson and not lesson.get('legacy') %}
+  <section class="lesson-block">
+    <h2>{{ tr('overview') }}</h2>
+    <p>{{ lesson.overview }}</p>
+  </section>
+
+  <section class="lesson-block phrases">
+    <h2>{{ tr('useful_phrases') }}</h2>
+    <p class="muted">Selected from your collection for this skill level — not random filler.</p>
+    <ul class="phrase-list">
+      {% for item in lesson.useful_phrases %}
+      {% set match = (entries | selectattr('phrase', 'equalto', item.phrase) | list | first) %}
+      <li>
+        {% set reading = (match.romanization if match and match.romanization else item.romanization) %}
+        {% set spoken = reading|ipa %}
+        <div class="phrase">{{ item.phrase }}</div>
+        {% if spoken %}
+        <div class="phonetics">
+          <p class="eyebrow">{{ tr('try_saying') }}</p>
+          <p class="phonetic-line">[{{ spoken }}]</p>
+          {% set parts = spoken.split() %}
+          {% if parts|length > 1 %}
+          <div class="syllables">{% for part in parts %}<span>{{ part }}</span>{% endfor %}</div>
+          {% endif %}
+          <p class="muted">{{ tr('say_ipa', ipa='[' ~ spoken ~ ']') }}</p>
+          <p class="source-reading">{{ reading }}</p>
+        </div>
+        {% elif reading %}
+        <div class="phonetics">
+          <p class="eyebrow">{{ tr('try_saying') }}</p>
+          <p class="phonetic-line">{{ reading }}</p>
+          <p class="muted">{{ tr('listen_repeat') }}</p>
+        </div>
+        {% else %}
+        <p class="muted">{{ tr('no_phonetics') }}</p>
+        {% endif %}
+        <div class="meaning">{{ item.translation }}</div>
+        <p class="context">{{ item.usage }}</p>
+        {% if item.level_note %}<p class="muted">{{ item.level_note }}</p>{% endif %}
+        <div class="playback" data-text="{{ item.phrase }}" data-language="{{ match.voice if match and match.voice is defined else '' }}">
+          <p class="eyebrow">Audio</p>
+          <audio preload="none" controls {% if match and match.audio %}src="{{ url_for('audio_file', filename=match.audio) }}"{% endif %}></audio>
+          <div class="play-buttons">
+            <button type="button" data-rate="1">▶ Normal</button>
+            <button type="button" data-rate="0.65">▶ Slow</button>
+          </div>
+          <p class="audio-status" role="status">{{ 'Speaker recording' if match and match.audio else 'Browser voice' }}</p>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <section class="lesson-block">
+    <h2>{{ tr('practice') }}</h2>
+    <div class="practice-list">
+      {% for item in lesson.practice %}
+      <div class="practice-item">
+        <p><strong>Q.</strong> {{ item.question }}</p>
+        <p class="muted"><strong>A.</strong> {{ item.answer }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if entries %}
+  <section class="lesson-block">
+    <h2>{{ tr('included') }}</h2>
+    <ul class="included-list">
+      {% for entry in entries %}
+      <li><strong>{{ entry.phrase }}</strong>{% if entry.romanization %} · {{ entry.romanization }}{% endif %} — {{ entry.meaning }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='audio.js') }}" defer></script>{% endblock %}

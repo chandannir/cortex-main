@@ -1,0 +1,54 @@
+{% extends 'learning_base.html' %}
+{% block title %}{{ tr('nav_discover') }} · Commonword{% endblock %}
+{% block content %}
+<section class="intro">
+  <p class="eyebrow">Explore</p>
+  <h1>{{ 'Your favourites.' if only else 'Find your next language.' }}</h1>
+  <p class="lead">Browse collections on this device, save favourites, then open one to study.</p>
+</section>
+
+<nav class="language-tabs">
+  <a href="/discover" class="{{ 'active' if not only }}">{{ tr('all_languages') }}</a>
+  <a href="/discover?favourites=1" class="{{ 'active' if only }}">★ {{ tr('nav_favourites') }}</a>
+  <a href="/study">{{ tr('nav_study') }}</a>
+</nav>
+
+<form class="search">
+  <input type="hidden" name="favourites" value="{{ '1' if only else '' }}">
+  <label class="sr-only" for="find">Find a language</label>
+  <input id="find" name="q" value="{{ q }}" placeholder="Find a language…">
+  <button type="submit">Search</button>
+</form>
+
+<section class="languages">{% include 'add_language.html' %}</section>
+
+<div class="discovery-grid">
+  {% for language in languages %}
+  <article class="card">
+    <p class="eyebrow">Collection</p>
+    <h2>{{ language.name }}</h2>
+    <p class="muted">{{ language.count }} contributed {{ 'entry' if language.count == 1 else 'entries' }}</p>
+    <div class="actions">
+      <a class="button-link" href="{{ url_for('index', language=language.name) }}">Open</a>
+      {% if language.count %}
+      <a class="button-link" href="{{ url_for('learning.learn', language=language.name) }}">{{ tr('learn') }}</a>
+      <a class="button-link" href="{{ url_for('language_lesson', language=language.name) }}">{{ tr('create_lesson') }}</a>
+      {% else %}
+      <span class="muted">Add a word to start learning.</span>
+      {% endif %}
+      <form action="/favourite" method="post">
+        <input type="hidden" name="language" value="{{ language.name }}">
+        <input type="hidden" name="filter" value="{{ '1' if only else '' }}">
+        <input type="hidden" name="save" value="{{ '0' if language.favourite else '1' }}">
+        <button type="submit" aria-label="{{ 'Unfavourite' if language.favourite else 'Favourite' }} {{ language.name }}">{{ '★ Saved' if language.favourite else '☆ Favourite' }}</button>
+      </form>
+    </div>
+  </article>
+  {% else %}
+  <article class="card">
+    <h2>{{ 'No favourites yet.' if only and not q else 'No languages found.' }}</h2>
+    <p class="muted">Try another search or add a language above.</p>
+  </article>
+  {% endfor %}
+</div>
+{% endblock %}

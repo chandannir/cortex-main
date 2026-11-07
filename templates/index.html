@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% block title %}{{ selected or 'Commonword' }} · Commonword{% endblock %}
+{% block content %}
+<section class="intro">
+  <p class="eyebrow">{{ tr('home_eyebrow') }}</p>
+  <h1>{% if selected %}{{ selected }}{% else %}{{ tr('home_title') }}{% endif %}</h1>
+  <p class="lead">{% if selected %}{{ entries|length }} {{ 'entry' if entries|length == 1 else 'entries' }} in this collection.{% else %}{{ tr('home_lead') }}{% endif %}</p>
+  {% if not selected %}<div class="stats"><span><b>{{ total }}</b> entries</span><span><b>{{ languages }}</b> languages</span></div>{% endif %}
+</section>
+
+{% if saved %}<p class="notice" role="status">Saved to your local library.</p>{% endif %}
+
+<nav class="language-tabs" aria-label="{{ tr('your_languages') }}">
+  <a href="/discover">{{ tr('all_languages') }}</a>
+  <a href="/discover?favourites=1">★ {{ tr('nav_favourites') }}</a>
+  {% for language in collections %}
+  <a class="{% if selected and selected|lower == language.name|lower %}active{% endif %}" href="{{ url_for('index', language=language.name) }}">{{ language.name }} <span>{{ language.count }}</span></a>
+  {% endfor %}
+</nav>
+
+{% if selected %}
+<div class="toolbar">
+  <a href="/discover">{{ tr('back_discover') }}</a>
+  <a href="#contribute">{{ tr('contribute') }}</a>
+  <a href="{{ url_for('language_lesson', language=selected) }}">{{ tr('create_lesson') }}</a>
+  <a href="{{ url_for('learning.learn', language=selected) }}">{{ tr('learn') }}</a>
+</div>
+{% endif %}
+
+<div class="layout {% if not selected %}single{% endif %}">
+  <section>
+    <form class="search" method="get">
+      <input type="hidden" name="language" value="{{ selected }}">
+      <label class="sr-only" for="q">Search</label>
+      <input id="q" name="q" value="{{ q }}" placeholder="{{ tr('search_placeholder') }}">
+      <button type="submit">Search</button>
+      {% if q %}<a class="button-link" href="{{ url_for('index', language=selected) }}">Clear</a>{% endif %}
+    </form>
+
+    {% for group in entries|groupby('language') %}
+      {% if not selected %}<h2 class="group-title">{{ group.grouper }}</h2>{% endif %}
+      {% for entry in group.list %}
+      <article class="card">
+        <div class="toolbar" style="margin:0 0 0.6rem">
+          <span class="tag">{{ entry.language }}</span>
+          <span class="number">#{{ '%03d'|format(entry.id) }}</span>
+        </div>
+        <p class="eyebrow">Original</p>
+        <h3 lang="{{ entry.voice }}">{{ entry.phrase }}</h3>
+        <p class="romanization"><span>Pronunciation</span><br>{{ entry.romanization or '—' }}</p>
+        <p class="meaning"><small>Meaning</small><br>{{ entry.meaning }}</p>
+        {% if entry.example %}
+        <div class="example">
+          <p class="eyebrow">Example</p>
+          <p class="original">{{ entry.example }}</p>
+          <p>{{ entry.translation }}</p>
+        </div>
+        {% endif %}
+        {% if entry.context %}<p class="context">{{ entry.context }}</p>{% endif %}
+        <div class="playback" data-text="{{ entry.phrase }}" data-language="{{ entry.voice or '' }}">
+          <p class="eyebrow">Audio</p>
+          <audio preload="none" controls {% if entry.audio %}src="{{ url_for('audio_file', filename=entry.audio) }}"{% endif %}></audio>
+          <div class="play-buttons">
+            <button type="button" data-rate="1">▶ Normal</button>
+            <button type="button" data-rate="0.65">▶ Slow</button>
+          </div>
+          <p class="audio-status" role="status">{{ 'Speaker recording' if entry.audio else 'No recording yet · browser voice only' }}</p>
+          <form class="attach-audio" method="post" action="{{ url_for('attach_audio', entry_id=entry.id) }}" enctype="multipart/form-data">
+            <label for="audio-{{ entry.id }}">{{ 'Replace demo audio' if entry.audio else 'Add demo audio' }}</label>
+            <input id="audio-{{ entry.id }}" type="file" name="audio" accept=".mp3,.wav,.ogg,.webm,.m4a,audio/*" required>
+            <button type="submit">Save audio</button>
+          </form>
+        </div>
+      </article>
+      {% endfor %}
+    {% else %}
+      <article class="card"><h2>No matching entries yet.</h2><p class="muted">Add a word to this collection, or try another search.</p></article>
+    {% endfor %}
+  </section>
+
+  {% if selected %}
+  <aside id="contribute">
+    <p class="eyebrow">{{ tr('contribute') }}</p>
+    <h2>{{ selected }}</h2>
+    {% if imported is not none %}<p class="notice" role="status">Imported {{ imported }} new {{ 'entry' if imported == 1 else 'entries' }}{% if import_mode %} ({{ import_mode }}){% endif %}.</p>{% endif %}
+    {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+
+    <div class="import-panel">
+      <h3>Upload a list or document</h3>
+      <p class="muted">TXT / CSV / TSV / MD / JSON — up to 1,000 phrases. Simple lists import instantly; check AI for prose or bare word lists.</p>
+      <form action="{{ url_for('import_document', language=selected) }}" method="post" class="contribute" enctype="multipart/form-data">
+        <label for="document">Document</label>
+        <input type="file" id="document" name="document" accept=".txt,.csv,.tsv,.md,.json,text/plain" required>
+        <label class="choice"><input type="checkbox" name="use_ai" value="1" checked> Use AI when the file is not a clear word list</label>
+        <button class="primary" type="submit">Import into {{ selected }}</button>
+      </form>
+    </div>
+
+    <hr class="soft">
+    <h3>Add one phrase</h3>
+    <p class="muted">Manual entry with optional recording.</p>
+    <form action="{{ url_for('index', language=selected) }}" method="post" class="contribute" enctype="multipart/form-data">
+      <input type="hidden" name="language" value="{{ selected }}">
+      {% for key, label, placeholder in [
+        ('phrase','Original writing','e.g. 我'),
+        ('romanization','Pronunciation','e.g. ngo5'),
+        ('meaning','Meaning','e.g. I / me'),
+        ('example','Example','Example sentence'),
+        ('translation','Example translation','Meaning of the example')
+      ] %}
+      <label for="{{ key }}">{{ label }}{% if key in ['phrase','meaning'] %}<span>required</span>{% endif %}</label>
+      <input id="{{ key }}" name="{{ key }}" value="{{ values[key] }}" placeholder="{{ placeholder }}" maxlength="2000" {% if key in ['phrase','meaning'] %}required{% endif %}>
+      {% endfor %}
+      <label for="context">Context</label>
+      <textarea id="context" name="context" rows="3" maxlength="2000" placeholder="When would you use it?">{{ values.context }}</textarea>
+      <label for="audio">Recording (optional)</label>
+      <input type="file" id="audio" name="audio" accept=".mp3,.wav,.ogg,.webm,.m4a,audio/*">
+      <div class="record-controls">
+        <button type="button" id="record">● Record</button>
+        <button type="button" id="stop" disabled>Stop</button>
+      </div>
+      <p id="record-status" role="status"></p>
+      <audio id="record-preview" controls hidden></audio>
+      <button class="primary" type="submit">Save</button>
+    </form>
+  </aside>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='audio.js') }}" defer></script>{% endblock %}

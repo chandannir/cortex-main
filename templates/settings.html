@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block title %}{{ tr('settings_title') }} · Commonword{% endblock %}
+{% block content %}
+<section class="intro">
+  <p class="eyebrow">Preferences</p>
+  <h1>{{ tr('settings_title') }}</h1>
+  <p class="lead">{{ tr('settings_lead') }}</p>
+</section>
+
+<article class="card setup">
+  {% if saved %}<p class="notice" role="status">{{ tr('settings_saved') }}</p>{% endif %}
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" class="settings-form">
+    <label for="ui_language">{{ tr('ui_language') }}</label>
+    <select id="ui_language" name="ui_language" required>
+      {% for code, label in ui_languages.items() %}
+      <option value="{{ code }}" {% if settings.ui_language == code %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <p class="muted">{{ tr('explain_in') }}: <strong>{{ settings.explanation_language }}</strong></p>
+    <button class="primary" type="submit">{{ tr('save_settings') }}</button>
+  </form>
+</article>
+{% endblock %}

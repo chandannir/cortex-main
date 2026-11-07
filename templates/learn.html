@@ -1,0 +1,39 @@
+{% extends 'learning_base.html' %}
+{% block title %}Learn {{ language }} · Commonword{% endblock %}
+{% block content %}
+<section class="intro">
+  <p class="eyebrow">Schedule</p>
+  <h1>Learn {{ language }}.</h1>
+  <p class="lead">Build a two-week plan. {{ count }} contributed entries available.</p>
+</section>
+
+<article class="card setup">
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" class="contribute">
+    <input type="hidden" name="language" value="{{ language }}">
+    <fieldset>
+      <legend>How often will you study?</legend>
+      {% for key, value in frequencies.items() %}
+      <label class="choice"><input type="radio" name="frequency" value="{{ key }}" {{ 'checked' if key == 'three' }}>{{ value[0] }}</label>
+      {% endfor %}
+    </fieldset>
+    <fieldset>
+      <legend>Time per study day</legend>
+      {% for minutes, label in [(5,'Light'),(10,'Steady'),(20,'Focused'),(30,'Immersive')] %}
+      <label class="choice"><input type="radio" name="minutes" value="{{ minutes }}" {{ 'checked' if minutes == 10 }}>{{ label }} · {{ minutes }} minutes</label>
+      {% endfor %}
+    </fieldset>
+    <label for="start">Start date (Toronto time)</label>
+    <input type="date" id="start" name="start" min="{{ today }}" value="{{ today }}" required>
+    <label for="level">{{ tr('learner_level') }}</label>
+    <select id="level" name="level" required>
+      {% for key, value in levels.items() %}
+      <option value="{{ key }}" {% if key == 'new' %}selected{% endif %}>{{ value[0] }}</option>
+      {% endfor %}
+    </select>
+    <p class="muted">{{ tr('explain_in') }}: <strong>{{ settings.explanation_language }}</strong> · <a href="{{ url_for('settings_page') }}">{{ tr('nav_settings') }}</a></p>
+    <p class="muted">Dates and basic goals work offline. AI coaching is optional after the schedule is saved.</p>
+    <button class="primary" type="submit" {% if not count %}disabled{% endif %}>Create my schedule →</button>
+  </form>
+</article>
+{% endblock %}

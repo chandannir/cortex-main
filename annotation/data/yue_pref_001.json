@@ -1,0 +1,50 @@
+{
+  "id": "yue_pref_001",
+  "category": "sarcasm",
+  "source_language": "yue-Hant-HK",
+  "target_language": "en",
+  "expression": "你好叻呀！",
+  "jyutping": "nei5 hou2 lek1 aa3",
+  "literal_translation": "You are very clever!",
+  "context": "A speaker sarcastically addresses someone who has made an obvious mistake while boasting.",
+  "speaker_relationship": "friends",
+  "conversation_context": "A friend has just bragged about a plan that immediately failed in an obvious way.",
+  "sarcasm_intensity": 4,
+  "politeness_level": "impolite",
+  "regional_variant": "Hong Kong Cantonese",
+  "ambiguity": true,
+  "literal_vs_figurative": "figurative",
+  "confidence": 0.9,
+  "chosen": {
+    "translation": "Wow, aren't you clever!",
+    "explanation": "The expression is sarcastic rather than sincere praise. The speaker uses exaggerated approval to criticize someone's lack of judgment.",
+    "emotional_connotation": [
+      "sarcasm",
+      "mockery",
+      "irony"
+    ],
+    "register": "informal",
+    "cultural_context": "In Cantonese conversation, exaggerated praise can function as indirect criticism, depending on intonation and interpersonal context."
+  },
+  "rejected": {
+    "translation": "You are very smart!",
+    "explanation": "This interpretation treats the expression as genuine praise and overlooks its sarcastic function.",
+    "error_type": [
+      "pragmatic_misinterpretation",
+      "emotional_loss"
+    ]
+  },
+  "preference": 1,
+  "evaluation_dimensions": {
+    "chosen": {
+      "translation_accuracy": 5,
+      "cultural_context": 5,
+      "emotional_depth": 5
+    },
+    "rejected": {
+      "translation_accuracy": 2,
+      "cultural_context": 1,
+      "emotional_depth": 1
+    }
+  }
+}

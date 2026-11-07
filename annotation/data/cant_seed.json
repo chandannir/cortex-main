@@ -1,0 +1,182 @@
+[
+  {
+    "id": "CANT001",
+    "category": "sarcasm",
+    "cantonese": "你好嘢喎！",
+    "jyutping": "nei5 hou2 je5 wo3",
+    "context": "Said to someone who has made an obviously foolish decision.",
+    "chosen": {
+      "translation": "Well, aren't you clever!",
+      "explanation": "A sarcastic remark implying that the person's decision was foolish. The exaggerated praise reverses the literal positive meaning.",
+      "emotion": "Mocking, disapproving, mildly contemptuous"
+    },
+    "rejected": {
+      "translation": "You are very capable!",
+      "explanation": "Treats the expression as sincere praise and misses the sarcastic context."
+    },
+    "preference_reason": "The chosen completion recognizes contextual irony and preserves the mocking tone.",
+    "evaluation_tags": ["sarcasm", "irony", "pragmatics"]
+  },
+  {
+    "id": "CANT002",
+    "category": "passive_aggression",
+    "cantonese": "你慢慢啦。",
+    "jyutping": "nei5 maan6 maan6 laa1",
+    "context": "Someone has been waiting for a friend who is extremely late.",
+    "chosen": {
+      "translation": "Take your time. I'm clearly not in a hurry.",
+      "explanation": "The apparent permission to proceed slowly communicates irritation and impatience.",
+      "emotion": "Passive-aggressive, frustrated, sarcastic"
+    },
+    "rejected": {
+      "translation": "Please proceed at your own pace.",
+      "explanation": "Interprets the sentence as a neutral and considerate offer."
+    },
+    "preference_reason": "The chosen version captures the implied frustration and conversational subtext.",
+    "evaluation_tags": ["passive_aggression", "emotional_connotation", "context"]
+  },
+  {
+    "id": "CANT003",
+    "category": "dismissive_sarcasm",
+    "cantonese": "得啦你。",
+    "jyutping": "dak1 laa1 nei5",
+    "context": "A friend keeps boasting about their achievements.",
+    "chosen": {
+      "translation": "Yeah, yeah, enough already.",
+      "explanation": "A dismissive response indicating that the speaker has heard enough of the other person's boasting.",
+      "emotion": "Impatient, teasing, dismissive"
+    },
+    "rejected": {
+      "translation": "You can do it!",
+      "explanation": "Confuses the expression with encouragement."
+    },
+    "preference_reason": "The chosen translation captures conversational dismissal rather than inventing encouragement.",
+    "evaluation_tags": ["dismissiveness", "register", "pragmatics"]
+  },
+  {
+    "id": "CANT004",
+    "category": "sarcastic_question",
+    "cantonese": "有冇搞錯呀？",
+    "jyutping": "jau5 mou5 gaau2 co3 aa3",
+    "context": "Someone discovers that a restaurant has charged them twice.",
+    "chosen": {
+      "translation": "You've got to be kidding me!",
+      "explanation": "An exclamation of disbelief and frustration, questioning the absurdity of the situation.",
+      "emotion": "Indignant, incredulous, frustrated"
+    },
+    "rejected": {
+      "translation": "Did you make a mistake?",
+      "explanation": "Reduces an emotionally charged idiomatic expression to a literal question."
+    },
+    "preference_reason": "The chosen translation reproduces the idiomatic force and emotional intensity.",
+    "evaluation_tags": ["idiom", "frustration", "translation_accuracy"]
+  },
+  {
+    "id": "CANT005",
+    "category": "mocking_irony",
+    "cantonese": "叻唔切。",
+    "jyutping": "lek1 m4 cit3",
+    "context": "A person constantly demonstrates their supposed superiority.",
+    "chosen": {
+      "translation": "Oh, look at you, showing off how clever you are.",
+      "explanation": "A mocking description of someone displaying excessive confidence or intelligence, often to the annoyance of others.",
+      "emotion": "Mocking, irritated, contemptuous"
+    },
+    "rejected": {
+      "translation": "Extremely intelligent.",
+      "explanation": "Treats the phrase as an objective compliment rather than a socially critical remark."
+    },
+    "preference_reason": "The chosen version communicates the implied criticism and social attitude.",
+    "evaluation_tags": ["mockery", "cultural_context", "emotion"]
+  },
+  {
+    "id": "CANT011",
+    "category": "slang",
+    "cantonese": "吹水",
+    "jyutping": "ceoi1 seoi2",
+    "context": "Friends are chatting casually about their weekend experiences.",
+    "chosen": {
+      "translation": "To chat, shoot the breeze, or talk nonsense.",
+      "explanation": "A versatile Cantonese expression for casual conversation, sometimes involving exaggeration or boastful storytelling.",
+      "emotion": "Casual, playful, informal"
+    },
+    "rejected": {
+      "translation": "To blow water.",
+      "explanation": "A literal translation that has no equivalent conversational meaning in English."
+    },
+    "preference_reason": "The chosen completion accounts for the expression's different conversational uses.",
+    "evaluation_tags": ["slang", "idiom", "cultural_context"]
+  },
+  {
+    "id": "CANT012",
+    "category": "slang",
+    "cantonese": "hea",
+    "jyutping": "he4",
+    "context": "A student spends the entire afternoon doing nothing productive.",
+    "chosen": {
+      "translation": "To laze around or just kill time.",
+      "explanation": "A Hong Kong Cantonese slang expression describing relaxed, unproductive, or aimless activity.",
+      "emotion": "Casual, relaxed, sometimes mildly critical"
+    },
+    "rejected": {
+      "translation": "To be very busy.",
+      "explanation": "Reverses the expression's intended meaning."
+    },
+    "preference_reason": "The chosen response preserves the informal register and typical social usage.",
+    "evaluation_tags": ["hong_kong_slang", "register", "semantic_accuracy"]
+  },
+  {
+    "id": "CANT013",
+    "category": "idiom",
+    "cantonese": "食檸檬",
+    "jyutping": "sik6 ning4 mung1",
+    "context": "Someone asks another person out, but gets rejected.",
+    "chosen": {
+      "translation": "To get rejected or turned down.",
+      "explanation": "Literally meaning 'to eat a lemon', the expression figuratively describes rejection, particularly romantic rejection.",
+      "emotion": "Disappointed, embarrassed, sometimes humorous"
+    },
+    "rejected": {
+      "translation": "To eat something sour.",
+      "explanation": "Only describes the literal image and loses the idiomatic meaning."
+    },
+    "preference_reason": "The chosen translation explains the figurative meaning and a common interpersonal context.",
+    "evaluation_tags": ["figurative_language", "romantic_context", "idiom"]
+  },
+  {
+    "id": "CANT014",
+    "category": "social_behaviour",
+    "cantonese": "扮嘢",
+    "jyutping": "baan6 je5",
+    "context": "A friend suddenly adopts an exaggerated sophisticated personality in front of strangers.",
+    "chosen": {
+      "translation": "To put on an act or pretend to be something you're not.",
+      "explanation": "Describes artificial behaviour intended to impress others or create a particular impression.",
+      "emotion": "Critical, teasing, disapproving"
+    },
+    "rejected": {
+      "translation": "To perform a theatrical role.",
+      "explanation": "Confuses everyday social pretence with professional acting."
+    },
+    "preference_reason": "The chosen translation preserves the social criticism embedded in the expression.",
+    "evaluation_tags": ["social_pragmatics", "figurative_meaning", "emotion"]
+  },
+  {
+    "id": "CANT015",
+    "category": "idiom",
+    "cantonese": "食花生",
+    "jyutping": "sik6 faa1 saang1",
+    "context": "People gather to watch two colleagues argue without getting involved.",
+    "chosen": {
+      "translation": "To sit back and enjoy the drama as a spectator.",
+      "explanation": "Literally 'eating peanuts', this expression describes watching an entertaining conflict without participating.",
+      "emotion": "Amused, detached, sometimes mischievous"
+    },
+    "rejected": {
+      "translation": "To eat peanuts while watching television.",
+      "explanation": "Focuses on the literal food reference rather than the metaphorical social behaviour."
+    },
+    "preference_reason": "The chosen completion captures the spectator role and the humorous cultural imagery.",
+    "evaluation_tags": ["metaphor", "cultural_context", "social_behaviour"]
+  }
+]

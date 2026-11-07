@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.cortex/annotation/preference-record.schema.json",
+  "title": "Cantonese preference annotation record",
+  "type": "object",
+  "required": [
+    "id",
+    "category",
+    "source_language",
+    "target_language",
+    "expression",
+    "jyutping",
+    "literal_translation",
+    "context",
+    "chosen",
+    "rejected",
+    "preference",
+    "evaluation_dimensions"
+  ],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "category": {
+      "type": "string",
+      "enum": [
+        "informal_vocabulary",
+        "sarcasm",
+        "cultural_expressions",
+        "emotional_expressions",
+        "slang_internet"
+      ]
+    },
+    "source_language": { "const": "yue-Hant-HK" },
+    "target_language": { "const": "en" },
+    "expression": { "type": "string", "minLength": 1 },
+    "jyutping": { "type": "string", "minLength": 1 },
+    "literal_translation": { "type": "string", "minLength": 1 },
+    "context": { "type": "string", "minLength": 1 },
+    "speaker_relationship": {
+      "type": "string",
+      "enum": ["friends", "colleagues", "strangers", "family"]
+    },
+    "conversation_context": { "type": "string" },
+    "sarcasm_intensity": { "type": "integer", "minimum": 0, "maximum": 5 },
+    "politeness_level": {
+      "type": "string",
+      "enum": ["polite", "neutral", "impolite", "vulgar"]
+    },
+    "regional_variant": { "type": "string" },
+    "ambiguity": { "type": "boolean" },
+    "literal_vs_figurative": {
+      "type": "string",
+      "enum": ["literal", "figurative", "both"]
+    },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "chosen": {
+      "type": "object",
+      "required": [
+        "translation",
+        "explanation",
+        "emotional_connotation",
+        "register",
+        "cultural_context"
+      ],
+      "properties": {
+        "translation": { "type": "string", "minLength": 1 },
+        "explanation": { "type": "string", "minLength": 1 },
+        "emotional_connotation": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "register": {
+          "type": "string",
+          "enum": ["informal", "neutral", "conversational", "professional", "explanatory"]
+        },
+        "cultural_context": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "rejected": {
+      "type": "object",
+      "required": ["translation", "explanation", "error_type"],
+      "properties": {
+        "translation": { "type": "string", "minLength": 1 },
+        "explanation": { "type": "string", "minLength": 1 },
+        "error_type": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "emotional_connotation": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "register": { "type": "string" },
+        "cultural_context": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "preference": { "const": 1 },
+    "evaluation_dimensions": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["translation_accuracy", "cultural_context", "emotional_depth"],
+          "properties": {
+            "translation_accuracy": { "type": "integer", "minimum": 1, "maximum": 5 },
+            "cultural_context": { "type": "integer", "minimum": 1, "maximum": 5 },
+            "emotional_depth": { "type": "integer", "minimum": 1, "maximum": 5 }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["chosen", "rejected"],
+          "properties": {
+            "chosen": { "$ref": "#/$defs/dimensionScores" },
+            "rejected": { "$ref": "#/$defs/dimensionScores" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "rejected_evaluation_dimensions": { "$ref": "#/$defs/dimensionScores" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "dimensionScores": {
+      "type": "object",
+      "required": ["translation_accuracy", "cultural_context", "emotional_depth"],
+      "properties": {
+        "translation_accuracy": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "cultural_context": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "emotional_depth": { "type": "integer", "minimum": 1, "maximum": 5 }
+      },
+      "additionalProperties": false
+    }
+  }
+}
