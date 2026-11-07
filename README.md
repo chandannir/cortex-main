@@ -1,5 +1,28 @@
 # Commonword
 
+### Dictionary and word questions
+
+Dictionary searches now check exact headword membership in the bundled official Rime
+Cantonese word lists under `resources/rime/` (source revision and license included).
+For a match, **Get unverified AI translation** sends the
+headword and sourced pronunciation to Featherless. The meaning is AI-generated,
+not a Rime definition; it is saved as pending and excluded from lessons/chat until
+human review. Results are cached per language, headword, and explanation language.
+No AI call is made for unmatched words or on ordinary searches. This lookup expects
+Chinese-character headwords; English and Jyutping searches still search saved entries.
+
+Open a language collection and select **Dictionary · Ask about words**. The
+dictionary lists verified contributions, searchable by original text, meaning,
+and dictionary pronunciation. It is the collection's word section, not a complete
+external dictionary of definitions. Cantonese readings use Rime via ToJyutping;
+syllable details explain tone numbers and show IPA from the existing LSHK mapping.
+Unknown parts now prevent incomplete readings from appearing as full pronunciation.
+
+**Ask about this word** selects that verified entry for the corner chat. Submit a
+question to call Featherless. Chat receives the dictionary reading and tone details,
+and its reply includes a separate dictionary reference. Pending entries are excluded.
+Meanings remain contributor-provided; the AI is instructed not to invent vocabulary.
+
 A local language library with Flask and SQLite. Includes the contributor-provided
 Cantonese entry 我 (I / me), with 我係… (I am…) as its example.
 

@@ -74,8 +74,11 @@
       {% for item in lesson.useful_phrases %}
       {% set match = (entries | selectattr('phrase', 'equalto', item.phrase) | list | first) %}
       <li>
-        {% set reading = (match.romanization if match and match.romanization else item.romanization) %}
-        {% set spoken = reading|ipa %}
+        {% set voice = match.voice if match and match.voice is defined else '' %}
+        {% set dict_jp = item.phrase|dict_jyutping(voice) %}
+        {% set reading = dict_jp or (match.romanization if match and match.romanization else item.romanization) %}
+        {% set spoken = item.phrase|dict_ipa(voice) %}
+        {% if not spoken and voice != 'yue-HK' %}{% set spoken = reading|ipa %}{% endif %}
         <div class="phrase">{{ item.phrase }}</div>
         {% if spoken %}
         <div class="phonetics">
@@ -86,7 +89,7 @@
           <div class="syllables">{% for part in parts %}<span>{{ part }}</span>{% endfor %}</div>
           {% endif %}
           <p class="muted">{{ tr('say_ipa', ipa='[' ~ spoken ~ ']') }}</p>
-          <p class="source-reading">{{ reading }}</p>
+          <p class="source-reading">{{ reading }}{% if dict_jp %} · {{ tr('phonetic_source') }}{% endif %}</p>
         </div>
         {% elif reading %}
         <div class="phonetics">
@@ -132,7 +135,7 @@
     <h2>{{ tr('included') }}</h2>
     <ul class="included-list">
       {% for entry in entries %}
-      <li><strong>{{ entry.phrase }}</strong>{% if entry.romanization %} · {{ entry.romanization }}{% endif %} — {{ entry.meaning }}</li>
+      <li><strong>{{ entry.phrase }}</strong>{% set jp = entry.phrase|dict_jyutping(entry.voice) %}{% if jp %} · {{ jp }}{% elif entry.romanization %} · {{ entry.romanization }}{% endif %} — {{ entry.meaning }}</li>
       {% endfor %}
     </ul>
   </section>

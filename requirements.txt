@@ -1,3 +1,4 @@
 Flask>=3.1,<4
 python-dotenv>=1.0,<2
 tzdata>=2025.1
+ToJyutping>=3.2,<4

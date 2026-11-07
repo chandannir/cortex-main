@@ -163,6 +163,11 @@ h1 {
 }
 .language-tabs span { opacity: 0.7; margin-left: 0.3rem; }
 
+.translate-box { margin-bottom: 1rem; }
+.translate-box .related { margin-top: 0.8rem; }
+.translate-box .related ul { margin: 0.3rem 0 0; padding-left: 1.1rem; }
+.translate-box .related li { margin: 0.25rem 0; }
+
 .search {
   display: flex;
   gap: 0.45rem;
@@ -212,6 +217,10 @@ button:disabled { opacity: 0.5; cursor: default; }
   padding: 0.25rem 0.6rem;
   border-radius: 999px;
   font-size: 0.75rem;
+}
+.tag.review {
+  background: transparent;
+  border: 1px solid var(--line);
 }
 .number, .muted, .romanization span, .meaning small, .audio-status, #record-status {
   color: var(--muted);

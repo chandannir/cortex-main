@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}{{ language }} dictionary · Commonword{% endblock %}
+{% block chat_language %}{{ language }}{% endblock %}
+{% block content %}
+<section class="intro"><p class="eyebrow">WORDS, MEANINGS &amp; SOUNDS</p><h1>{{ language }} dictionary</h1><p class="lead">Explore verified words and phrases from your collection. Ask the tutor about a word to understand its meaning and pronunciation.</p><a href="{{ url_for('index', language=language) }}">Back to collection · Add words</a></section>
+<form class="search" method="get"><label class="sr-only" for="dictionary-search">Search dictionary</label><input id="dictionary-search" name="q" value="{{ q }}" placeholder="Search characters, Jyutping, or meaning" maxlength="300"><button>Search</button>{% if q %}<a href="{{ url_for('language_dictionary', language=language) }}">Clear</a>{% endif %}</form>
+{% if voice == 'yue-HK' %}<article class="card"><h2>Read Cantonese with Jyutping</h2><p>Letters describe the sound; the final number identifies the tone. Jyutping is Cantonese romanization, not Mandarin pinyin.</p><p>1 high level · 2 high rising · 3 mid level · 4 low falling · 5 low rising · 6 mid-low level</p><small>Readings: Rime Cantonese dictionary via ToJyutping (CC BY 4.0). <a href="https://jyutping.org/en/learn/" target="_blank" rel="noopener">LSHK Jyutping learning guide</a>. Readings can vary with context; recordings from speakers remain useful.</small></article>{% endif %}
+<p>{{ words|length }} matching verified entries</p>
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+{% if q and voice == 'yue-HK' %}
+<article class="card">
+{% if dictionary_match %}
+<p class="eyebrow">EXACT WORD-LIST MATCH</p><h2>{{ dictionary_match.phrase }}</h2>
+<p>{{ dictionary_match.romanization }}{% if dictionary_match.ipa %} [{{ dictionary_match.ipa }}]{% endif %}</p>
+<p>Spelling and pronunciation source: <a href="{{ dictionary_match.source_url }}" target="_blank" rel="noopener">{{ dictionary_match.source }}</a> (CC BY 4.0).</p>
+{% if draft %}
+<p class="notice">{{ 'Unverified AI translation — needs human review' if draft.review_status == 'pending' else 'AI translation — reviewed by a contributor' }}</p>
+<p class="meaning">{{ draft.meaning }}</p><p>{{ draft.context }}</p>
+<p class="muted">Saved translation in {{ preferred }}. Reopening this result uses no API tokens.</p>
+{% if draft.review_status == 'pending' %}<form method="post" action="{{ url_for('review_entry', entry_id=draft.id) }}"><button>Mark verified after review</button></form>{% endif %}
+{% else %}
+<p>Get an AI translation in {{ preferred }}. The word-list match supports the word and pronunciation; it does not verify the translation.</p>
+<form method="post" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Translating…';"><input type="hidden" name="q" value="{{ q }}"><button class="primary">Get unverified AI translation</button></form>
+{% endif %}
+{% else %}<p>No exact Cantonese word-list match for “{{ q }}”. To request an AI definition, enter a word in Chinese characters. Saved entries can still be searched by meaning or Jyutping.</p>{% endif %}
+</article>
+{% endif %}
+{% for word in words %}<article class="card" id="word-{{ word.id }}"><p class="eyebrow">{{ language }} · VERIFIED ENTRY</p><h2 lang="{{ voice }}">{{ word.phrase }}</h2><p class="meaning">{{ word.meaning }}</p><p class="romanization">{{ word.pronunciation or 'No dictionary pronunciation available' }}</p>{% if word.reading and word.reading.ipa %}<p>IPA: [{{ word.reading.ipa }}]</p>{% endif %}
+{% if word.reading %}<details><summary>Syllables &amp; tones</summary><ul>{% for syllable in word.reading.syllables %}<li><strong>{{ syllable.jyutping }}</strong>{% if syllable.ipa %} [{{ syllable.ipa }}] · Tone {{ syllable.tone }}: {{ syllable.tone_name }}{% endif %}</li>{% endfor %}</ul></details>{% endif %}
+{% if word.context %}<p>{{ word.context }}</p>{% endif %}{% if word.example %}<p>{{ word.example }} — {{ word.translation }}</p>{% endif %}
+<button type="button" class="dictionary-ask" data-entry-id="{{ word.id }}" data-phrase="{{ word.phrase }}">Ask about this word</button><a href="{{ url_for('index',language=language,q=word.phrase) }}">Word &amp; audio</a></article>{% else %}<article class="card"><h2>No verified words found.</h2><p>Try another search or add and verify words in the collection. This dictionary uses contributed meanings; it does not invent definitions.</p></article>{% endfor %}
+{% endblock %}

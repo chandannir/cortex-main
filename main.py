@@ -6,12 +6,19 @@ import os
 import sqlite3
 import uuid
 from threading import Lock
-from ai_lessons import answer_collection_question, generate_language_lesson, lesson_from_storage
+from ai_lessons import (
+    answer_collection_question,
+    generate_language_lesson,
+    generate_translation,
+    generate_dictionary_translation,
+    lesson_from_storage,
+    related_entries,
+)
 from document_import import TEXT_SUFFIXES, decode_upload, extract_entries_from_document
 from learning import register_learning
 from preferences import LEVELS, LANGUAGES
 from i18n import UI_LANGUAGES, explanation_for, t
-from phonetics import jyutping_to_ipa
+from phonetics import dictionary_ipa, dictionary_jyutping, jyutping_to_ipa, lookup_phonetic, cantonese_reading, cantonese_word
 from flask import Flask, g, jsonify, redirect, render_template, request, url_for, send_from_directory
 
 ROOT = Path(__file__).resolve().parent
@@ -32,6 +39,8 @@ def default_database():
 def create_app(database=None):
     app = Flask(__name__)
     app.jinja_env.filters['ipa'] = jyutping_to_ipa
+    app.jinja_env.filters['dict_jyutping'] = dictionary_jyutping
+    app.jinja_env.filters['dict_ipa'] = dictionary_ipa
     lesson_lock = Lock()
     app.config['DATABASE'] = str(database or default_database())
     app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
@@ -86,6 +95,9 @@ def create_app(database=None):
         for name in ('romanization', 'audio', 'lesson'):
             if name not in columns:
                 db.execute(f"ALTER TABLE entries ADD COLUMN {name} TEXT NOT NULL DEFAULT ''")
+        columns = {row['name'] for row in db.execute('PRAGMA table_info(entries)')}
+        if 'review_status' not in columns:
+            db.execute("ALTER TABLE entries ADD COLUMN review_status TEXT NOT NULL DEFAULT 'verified'")
         db.execute('''CREATE TABLE IF NOT EXISTS languages (
             name TEXT PRIMARY KEY COLLATE NOCASE, voice TEXT NOT NULL DEFAULT '')''')
         db.execute('INSERT OR IGNORE INTO languages(name) SELECT DISTINCT language FROM entries')
@@ -99,6 +111,9 @@ def create_app(database=None):
             PRIMARY KEY(language, level, preferred))''')
         db.execute('''CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY, value TEXT NOT NULL)''')
+        db.execute('''CREATE TABLE IF NOT EXISTS dictionary_drafts (
+            language TEXT COLLATE NOCASE, phrase TEXT, preferred TEXT, entry_id INTEGER,
+            PRIMARY KEY(language, phrase, preferred))''')
         for key, value in DEFAULT_SETTINGS.items():
             db.execute('INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)', (key, value))
 
@@ -157,7 +172,8 @@ def create_app(database=None):
             entries = db.execute(
                 '''SELECT entries.*, languages.voice FROM entries
                    JOIN languages ON entries.language=languages.name COLLATE NOCASE
-                   WHERE entries.language=? COLLATE NOCASE ORDER BY entries.id''',
+                   WHERE entries.language=? COLLATE NOCASE AND entries.review_status='verified'
+                   ORDER BY entries.id''',
                 (language,)).fetchall() if language_row else []
             cached = db.execute(
                 '''SELECT content FROM language_lesson_variants
@@ -198,37 +214,307 @@ def create_app(database=None):
             'lesson.html', language=language, entries=entries, lesson=lesson,
             error=error, level=level, preferred=preferred), status
 
+    @app.route('/languages/<path:language>/dictionary', methods=['GET', 'POST'])
+    def language_dictionary(language):
+        with connect() as db:
+            language_row = db.execute('SELECT name, voice FROM languages WHERE name=?', (language,)).fetchone()
+            rows = db.execute("SELECT * FROM entries WHERE language=? COLLATE NOCASE AND review_status='verified' ORDER BY phrase", (language,)).fetchall()
+        if not language_row:
+            return 'Language not found', 404
+        query = request.values.get('q', '').strip()[:300]
+        dictionary_match = cantonese_word(query) if query and language_row['voice'] == 'yue-HK' else None
+        error = None
+        draft = None
+        preferred = g.settings['explanation_language']
+        def find_draft():
+            with connect() as db:
+                return db.execute('''SELECT e.* FROM dictionary_drafts d JOIN entries e ON e.id=d.entry_id
+                    WHERE d.language=? COLLATE NOCASE AND d.phrase=? AND d.preferred=?''',
+                    (language_row['name'], query, preferred)).fetchone()
+        if dictionary_match:
+            draft = find_draft()
+        if request.method == 'POST' and not draft:
+            if not dictionary_match:
+                error = 'No exact word-list match. Enter a Cantonese word in Chinese characters. No AI request was sent.'
+            elif not lesson_lock.acquire(blocking=False):
+                error = 'Another AI request is running. Try again shortly.'
+            else:
+                try:
+                    draft = find_draft()
+                    if not draft:
+                        result = generate_dictionary_translation(dictionary_match, preferred)
+                        with connect() as db:
+                            entry_id = db.execute('''INSERT INTO entries
+                                (language, phrase, meaning, example, translation, context, romanization, audio, review_status)
+                                VALUES (?, ?, ?, '', '', ?, ?, '', 'pending')''',
+                                (language_row['name'], query, result['meaning'],
+                                 'AI translation (unverified). Word-list source: Rime Cantonese word lists. '
+                                 'Explanation language: ' + preferred + '. ' + result['note'],
+                                 dictionary_match['romanization'])).lastrowid
+                            db.execute('INSERT INTO dictionary_drafts VALUES(?,?,?,?)',
+                                       (language_row['name'], query, preferred, entry_id))
+                    return redirect(url_for('language_dictionary', language=language_row['name'], q=query), code=303)
+                except ValueError as exc:
+                    error = str(exc)
+                finally:
+                    lesson_lock.release()
+        words = []
+        for row in rows:
+            word = dict(row)
+            reading = cantonese_reading(word['phrase']) if language_row['voice'] == 'yue-HK' else None
+            word['reading'] = reading
+            word['pronunciation'] = reading['jyutping'] if reading else ('' if language_row['voice'] == 'yue-HK' else word['romanization'])
+            if not query or any(query.casefold() in str(word[key]).casefold() for key in ('phrase', 'meaning', 'pronunciation', 'context')):
+                words.append(word)
+        return render_template('dictionary.html', language=language_row['name'],
+                               voice=language_row['voice'], words=words, q=query,
+                               dictionary_match=dictionary_match, draft=draft, error=error,
+                               preferred=preferred)
+
     @app.post('/languages/<path:language>/chat')
     def language_chat(language):
         payload = request.get_json(silent=True) or {}
+        if not isinstance(payload, dict) or not isinstance(payload.get('question', ''), str):
+            return jsonify(error='Enter a text question.'), 400
         question = (payload.get('question') or '').strip()
         history = payload.get('history') or []
         if not question or len(question) > 500:
             return jsonify(error='Ask a question under 500 characters.'), 400
-        if not isinstance(history, list) or len(history) > 12:
+        if not isinstance(history, list) or len(history) > 12 or any(not isinstance(turn, dict) or not isinstance(turn.get('content', ''), str) for turn in history):
             return jsonify(error='The conversation is too long. Start again.'), 400
         preferred = g.settings['explanation_language']
         with connect() as db:
             language_row = db.execute(
-                'SELECT name FROM languages WHERE name=?', (language,)).fetchone()
+                'SELECT name, voice FROM languages WHERE name=?', (language,)).fetchone()
             entries = db.execute(
-                '''SELECT phrase, romanization, meaning, context FROM entries
-                   WHERE language=? COLLATE NOCASE ORDER BY id''',
+                '''SELECT id, phrase, romanization, meaning, context FROM entries
+                   WHERE language=? COLLATE NOCASE AND review_status='verified' ORDER BY id''',
                 (language,)).fetchall() if language_row else []
         if not language_row:
             return jsonify(error='Language not found'), 404
         if not entries:
             return jsonify(error='Add a phrase to this language before asking about it.'), 400
+        selected_id = payload.get('entry_id')
+        if selected_id is not None:
+            entries = [entry for entry in entries if str(entry['id']) == str(selected_id)]
+            if not entries:
+                return jsonify(error='That verified dictionary word was not found in this language.'), 404
+        else:
+            # Relevant words should not disappear behind the 250-entry prompt limit.
+            entries = sorted(entries, key=lambda e: e['phrase'] not in question)
+        prepared = []
+        for row in entries[:250]:
+            entry = dict(row)
+            if language_row['voice'] == 'yue-HK':
+                reading = cantonese_reading(entry['phrase'])
+                entry['romanization'] = reading['jyutping'] if reading else ''
+                entry['ipa'] = reading['ipa'] if reading else ''
+                entry['syllables'] = reading['syllables'] if reading else []
+            prepared.append(entry)
         if not lesson_lock.acquire(blocking=False):
             return jsonify(error='Another AI request is running. Try again shortly.'), 429
         try:
             reply = answer_collection_question(
-                language_row['name'], entries, question, history, preferred)
+                language_row['name'], prepared, question, history, preferred)
         except ValueError as exc:
             return jsonify(error=str(exc)), 502
         finally:
             lesson_lock.release()
-        return jsonify(reply=reply, language=language_row['name'])
+        return jsonify(reply=reply, language=language_row['name'], sources=[{'id': e['id'], 'phrase': e['phrase'], 'romanization': e['romanization'], 'ipa': e.get('ipa', '')} for e in prepared] if selected_id is not None else [])
+
+    def render_library(selected='', translate_query='', translate_error=None, translation=None, error=None, values=None):
+        fields = ('language', 'phrase', 'meaning', 'example', 'translation', 'context', 'romanization')
+        if values is None:
+            values = dict.fromkeys(fields, '')
+        values['language'] = selected or values.get('language', '')
+        with connect() as db:
+            entries = db.execute('SELECT entries.*, languages.voice FROM entries JOIN languages ON entries.language=languages.name COLLATE NOCASE ORDER BY entries.id DESC').fetchall()
+            collections = db.execute('SELECT languages.*, COUNT(entries.id) AS count FROM languages LEFT JOIN entries ON entries.language=languages.name COLLATE NOCASE GROUP BY languages.name ORDER BY languages.name').fetchall()
+        total = len(entries)
+        language_count = len(collections)
+        if selected:
+            entries = [entry for entry in entries if entry['language'].casefold() == selected.casefold()]
+        query = request.args.get('q', '').strip()
+        if query:
+            entries = [entry for entry in entries if any(
+                query.casefold() in (entry[key] or '').casefold() for key in fields)]
+        import_errors = {
+            '1': 'Choose a document to upload.',
+            'type': 'Use a TXT, CSV, TSV, MD, or JSON text file.',
+            'empty': 'That file was empty.',
+            'size': 'Keep import files under 2 MB.',
+            'busy': 'Another AI request is running. Try again shortly.',
+            'ai': request.args.get('detail') or 'Could not extract phrases from that file.',
+        }
+        if request.args.get('audio_error') == '1':
+            import_errors['audio'] = 'Choose an MP3, WAV, OGG, WebM, or M4A recording.'
+        import_error = import_errors.get(request.args.get('import_error', ''))
+        if request.args.get('audio_error') == '1':
+            import_error = import_errors['audio']
+        imported = request.args.get('imported')
+        page_error = error or import_error
+        return render_template(
+            'index.html', entries=entries, total=total,
+            languages=language_count, q=query, values=values,
+            collections=collections, selected=selected,
+            error=page_error,
+            saved=request.args.get('saved') == '1',
+            imported=int(imported) if imported and imported.isdigit() else None,
+            import_mode=request.args.get('import_mode', ''),
+            translation=translation,
+            translate_query=translate_query,
+            translate_error=translate_error,
+        ), (400 if page_error else 200)
+
+    def _with_phonetic(result, voice):
+        """Fill Jyutping and IPA from the dictionary when this language has one."""
+        found = lookup_phonetic(result.get('phrase') or '', voice or '')
+        if found['romanization']:
+            result['romanization'] = found['romanization']
+            result['ipa'] = found['ipa']
+        else:
+            result['ipa'] = ''
+        return result
+
+    def remember_pair(language_name, result, review_status='pending'):
+        """Store a phrase pair once. Generated pairs stay pending until a person verifies them."""
+        with connect() as db:
+            existing = db.execute(
+                '''SELECT id, review_status, romanization FROM entries
+                   WHERE language=? COLLATE NOCASE AND phrase=? AND meaning=?''',
+                (language_name, result['phrase'], result['meaning'])).fetchone()
+            if existing:
+                result['id'] = existing['id']
+                result['review_status'] = existing['review_status']
+                result['from_collection'] = True
+                if result.get('romanization') and not existing['romanization']:
+                    db.execute(
+                        'UPDATE entries SET romanization=? WHERE id=?',
+                        (result['romanization'], existing['id']))
+                elif not result.get('romanization') and existing['romanization']:
+                    result['romanization'] = existing['romanization']
+                return result
+            cursor = db.execute(
+                '''INSERT INTO entries
+                   (language, phrase, meaning, example, translation, context, romanization, audio, review_status)
+                   VALUES (?, ?, ?, '', '', ?, ?, '', ?)''',
+                (language_name, result['phrase'], result['meaning'],
+                 (result.get('note') or '')[:2000], result.get('romanization') or '', review_status))
+            result['id'] = cursor.lastrowid
+            result['review_status'] = review_status
+            result['from_collection'] = False
+        return result
+
+    @app.post('/languages/<path:language>/translate')
+    def translate_language(language):
+        payload = request.get_json(silent=True) if request.is_json else {}
+        payload = payload or {}
+        supplied_phrase = (payload.get('phrase') or request.form.get('phrase') or '').strip()
+        supplied_meaning = (payload.get('meaning') or request.form.get('meaning') or '').strip()
+        text = (payload.get('text') or request.form.get('text') or supplied_phrase or supplied_meaning).strip()
+        preferred = g.settings['explanation_language']
+        with connect() as db:
+            language_row = db.execute(
+                'SELECT name, voice FROM languages WHERE name=?', (language,)).fetchone()
+            entries = db.execute(
+                '''SELECT id, phrase, romanization, meaning, context, review_status FROM entries
+                   WHERE language=? COLLATE NOCASE ORDER BY id''',
+                (language,)).fetchall() if language_row else []
+        if not language_row:
+            if request.is_json:
+                return jsonify(error='Language not found'), 404
+            return 'Language not found', 404
+        if not text or len(text) > 300:
+            message = 'Enter an idea under 300 characters.'
+            if request.is_json:
+                return jsonify(error=message), 400
+            page, _status = render_library(
+                language_row['name'], translate_query=text, translate_error=message)
+            return page, 400
+        if supplied_phrase and supplied_meaning:
+            result = {
+                'phrase': supplied_phrase,
+                'meaning': supplied_meaning,
+                'romanization': (payload.get('romanization') or request.form.get('romanization') or '').strip(),
+                'note': '',
+                'from_collection': False,
+            }
+            result = remember_pair(language_row['name'], _with_phonetic(result, language_row['voice']), 'verified')
+        else:
+            if not lesson_lock.acquire(blocking=False):
+                message = 'Another AI request is running. Try again shortly.'
+                if request.is_json:
+                    return jsonify(error=message), 429
+                page, _status = render_library(
+                    language_row['name'], translate_query=text, translate_error=message)
+                return page, 429
+            try:
+                examples = [entry for entry in entries if entry['review_status'] == 'verified']
+                result = generate_translation(
+                    language_row['name'], text, examples, preferred,
+                    keep_phrase=supplied_phrase, keep_meaning=supplied_meaning)
+                if supplied_phrase:
+                    result['phrase'] = supplied_phrase
+                if supplied_meaning:
+                    result['meaning'] = supplied_meaning
+            except ValueError as exc:
+                if request.is_json:
+                    return jsonify(error=str(exc)), 502
+                page, _status = render_library(
+                    language_row['name'], translate_query=text, translate_error=str(exc))
+                return page, 502
+            finally:
+                lesson_lock.release()
+            result = remember_pair(language_row['name'], _with_phonetic(result, language_row['voice']), 'pending')
+        result['query'] = text
+        result['related'] = [{
+            'id': entry['id'],
+            'phrase': entry['phrase'],
+            'meaning': entry['meaning'],
+            'romanization': entry['romanization'] or '',
+        } for entry in related_entries(text, entries)]
+        if request.is_json:
+            return jsonify(
+                id=result['id'],
+                phrase=result['phrase'],
+                meaning=result['meaning'],
+                romanization=result.get('romanization') or '',
+                ipa=result.get('ipa') or '',
+                review_status=result['review_status'],
+                note=result.get('note') or '',
+            )
+        return render_library(language_row['name'], translate_query=text, translation=result)
+
+    @app.post('/languages/<path:language>/phonetic')
+    def language_phonetic(language):
+        payload = request.get_json(silent=True) if request.is_json else {}
+        payload = payload or {}
+        phrase = (payload.get('phrase') or request.form.get('phrase') or request.form.get('text') or '').strip()
+        if not phrase or len(phrase) > 300:
+            return jsonify(error='Enter a phrase under 300 characters.'), 400
+        with connect() as db:
+            language_row = db.execute(
+                'SELECT name, voice FROM languages WHERE name=?', (language,)).fetchone()
+        if not language_row:
+            return jsonify(error='Language not found'), 404
+        found = lookup_phonetic(phrase, language_row['voice'])
+        if not found['romanization']:
+            return jsonify(error='No pronunciation was found for that phrase.'), 404
+        return jsonify(phrase=phrase, romanization=found['romanization'], ipa=found['ipa'])
+
+    @app.post('/entries/<int:entry_id>/review')
+    def review_entry(entry_id):
+        with connect() as db:
+            entry = db.execute(
+                'SELECT id, language FROM entries WHERE id=?', (entry_id,)).fetchone()
+            if not entry:
+                if request.is_json:
+                    return jsonify(error='Entry not found'), 404
+                return 'Entry not found', 404
+            db.execute("UPDATE entries SET review_status='verified' WHERE id=?", (entry_id,))
+        if request.is_json:
+            return jsonify(id=entry_id, review_status='verified')
+        return redirect(url_for('index', language=entry['language']), code=303)
 
     @app.post('/languages/<path:language>/lesson/delete')
     def delete_language_lesson(language):
@@ -261,7 +547,7 @@ def create_app(database=None):
         use_ai = request.form.get('use_ai') == '1'
         with connect() as db:
             language_row = db.execute(
-                'SELECT name FROM languages WHERE name=?', (language,)).fetchone()
+                'SELECT name, voice FROM languages WHERE name=?', (language,)).fetchone()
         if not language_row:
             return 'Language not found', 404
         language = language_row['name']
@@ -304,12 +590,15 @@ def create_app(database=None):
                 if bool(entry['example']) != bool(entry['translation']):
                     entry['example'] = ''
                     entry['translation'] = ''
+                if not entry['romanization']:
+                    entry['romanization'] = lookup_phonetic(entry['phrase'], language_row['voice'])['romanization']
                 db.execute(
                     '''INSERT INTO entries
-                       (language, phrase, meaning, example, translation, context, romanization, audio)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+                       (language, phrase, meaning, example, translation, context, romanization, audio, review_status)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                     (language, entry['phrase'], entry['meaning'], entry['example'],
-                     entry['translation'], entry['context'], entry['romanization'], ''))
+                     entry['translation'], entry['context'], entry['romanization'], '',
+                     'pending' if mode == 'ai' else 'verified'))
                 existing.add(key)
                 inserted += 1
         return redirect(
@@ -384,65 +673,64 @@ def create_app(database=None):
                 values['language'] = selected
             else:
                 selected = values['language']
-            if any(not values[key] for key in fields[:3]):
-                error = 'Please enter a language, a phrase, and its English meaning.'
+            review_status = 'verified'
+            if not values['language'] or not (values['phrase'] or values['meaning']):
+                error = 'Enter a language and either a phrase, a meaning, or both.'
             elif any(len(value) > 2000 for value in values.values()):
                 error = 'Keep each field under 2,000 characters.'
             elif bool(values['example']) != bool(values['translation']):
                 error = 'Include both the example and its English meaning, or leave both empty.'
             else:
                 with connect() as db:
-                    language = db.execute('SELECT name FROM languages WHERE name=?', (values['language'],)).fetchone()
+                    language = db.execute(
+                        'SELECT name, voice FROM languages WHERE name=?', (values['language'],)).fetchone()
                 upload = request.files.get('audio')
                 suffix = Path(upload.filename or '').suffix.lower() if upload else ''
                 if not language:
                     error = 'Add the language collection first, then select it.'
                 elif upload and suffix not in ('.mp3', '.wav', '.ogg', '.webm', '.m4a'):
                     error = 'Choose an MP3, WAV, OGG, WebM, or M4A recording.'
+                elif bool(values['phrase']) != bool(values['meaning']):
+                    if not lesson_lock.acquire(blocking=False):
+                        error = 'Another AI request is running. Try again shortly.'
+                    else:
+                        try:
+                            with connect() as db:
+                                samples = db.execute(
+                                    '''SELECT phrase, romanization, meaning FROM entries
+                                       WHERE language=? COLLATE NOCASE AND review_status='verified'
+                                       ORDER BY id''',
+                                    (language['name'],)).fetchall()
+                            generated = generate_translation(
+                                language['name'], values['phrase'] or values['meaning'], samples,
+                                g.settings['explanation_language'],
+                                keep_phrase=values['phrase'], keep_meaning=values['meaning'])
+                            if values['phrase']:
+                                generated['phrase'] = values['phrase']
+                            if values['meaning']:
+                                generated['meaning'] = values['meaning']
+                            values['phrase'] = generated['phrase']
+                            values['meaning'] = generated['meaning']
+                            if not values['context']:
+                                values['context'] = generated['note']
+                            review_status = 'pending'
+                        except ValueError as exc:
+                            error = str(exc)
+                        finally:
+                            lesson_lock.release()
             if not error:
+                if not values['romanization']:
+                    values['romanization'] = lookup_phonetic(values['phrase'], language['voice'])['romanization']
                 values['language'] = language['name']
                 filename = uuid.uuid4().hex + suffix if upload else ''
                 if upload:
                     upload.save(audio_dir / filename)
                 with connect() as db:
                     db.execute('''INSERT INTO entries
-                        (language, phrase, meaning, example, translation, context, romanization, audio)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', (*values.values(), filename))
+                        (language, phrase, meaning, example, translation, context, romanization, audio, review_status)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', (*values.values(), filename, review_status))
                 return redirect(url_for('index', saved='1', language=values['language']), code=303)
-        with connect() as db:
-            entries = db.execute('SELECT entries.*, languages.voice FROM entries JOIN languages ON entries.language=languages.name COLLATE NOCASE ORDER BY entries.id DESC').fetchall()
-            collections = db.execute('SELECT languages.*, COUNT(entries.id) AS count FROM languages LEFT JOIN entries ON entries.language=languages.name COLLATE NOCASE GROUP BY languages.name ORDER BY languages.name').fetchall()
-        total = len(entries)
-        languages = len(collections)
-        if selected:
-            entries = [entry for entry in entries if entry['language'].casefold() == selected.casefold()]
-        query = request.args.get('q', '').strip()
-        if query:
-            entries = [entry for entry in entries if any(
-                query.casefold() in entry[key].casefold() for key in fields)]
-        import_errors = {
-            '1': 'Choose a document to upload.',
-            'type': 'Use a TXT, CSV, TSV, MD, or JSON text file.',
-            'empty': 'That file was empty.',
-            'size': 'Keep import files under 2 MB.',
-            'busy': 'Another AI request is running. Try again shortly.',
-            'ai': request.args.get('detail') or 'Could not extract phrases from that file.',
-        }
-        if request.args.get('audio_error') == '1':
-            import_errors['audio'] = 'Choose an MP3, WAV, OGG, WebM, or M4A recording.'
-        import_error = import_errors.get(request.args.get('import_error', ''))
-        if request.args.get('audio_error') == '1':
-            import_error = import_errors['audio']
-        imported = request.args.get('imported')
-        return render_template(
-            'index.html', entries=entries, total=total,
-            languages=languages, q=query, values=values,
-            collections=collections, selected=selected,
-            error=error or import_error,
-            saved=request.args.get('saved') == '1',
-            imported=int(imported) if imported and imported.isdigit() else None,
-            import_mode=request.args.get('import_mode', ''),
-        ), (400 if error or import_error else 200)
+        return render_library(selected, error=error, values=values)
 
     register_learning(app, connect, lesson_lock)
     return app

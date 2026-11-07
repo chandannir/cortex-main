@@ -17,6 +17,16 @@ class LibraryTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
+    def test_cantonese_page_uses_dictionary_pronunciation(self):
+        page = self.client.get('/?language=Cantonese').get_data(as_text=True)
+        self.assertIn('ngo5', page)
+        self.assertIn('ŋɔː˩˧', page)
+        self.assertIn('Rime Cantonese dictionary', page)
+        self.client.post('/', data=dict(language='Cantonese', phrase='hea', meaning='to laze', romanization='he4'))
+        loan = self.client.get('/?language=Cantonese').get_data(as_text=True)
+        self.assertIn('he4', loan)
+        self.assertNotIn('hɛː', loan)
+
     def test_seed_survives_restart_without_duplicates(self):
         self.assertIn('我係…', self.client.get('/').get_data(as_text=True))
         create_app(self.db)
@@ -104,6 +114,86 @@ class LibraryTests(unittest.TestCase):
         self.assertIn('controls', page)
         self.assertIn('/audio/', page)
         self.assertIn('Replace demo audio', page)
+
+    def test_translate_generates_a_phrase_that_was_not_uploaded(self):
+        from ai_lessons import parse_translation, related_entries
+        saved = [
+            {'phrase': '我好肚餓', 'meaning': 'I am very hungry', 'romanization': 'ngo5 hou2 tou5 ngo6'},
+            {'phrase': '我', 'meaning': 'I / me', 'romanization': 'ngo5'},
+        ]
+        self.assertEqual(related_entries('I am hungry', saved)[0]['phrase'], '我好肚餓')
+        parsed = parse_translation(
+            '{"phrase":"我好肚餓","meaning":"I am hungry","romanization":"wrong","note":""}', saved)
+        self.assertEqual(parsed['romanization'], 'ngo5 hou2 tou5 ngo6')
+        self.assertTrue(parsed['from_collection'])
+        fresh = parse_translation(
+            '{"phrase":"我肚餓。","meaning":"I am hungry","romanization":"gwai2 hou2 gaat6","note":""}', saved)
+        self.assertEqual(fresh['phrase'], '我肚餓')
+        self.assertEqual(fresh['romanization'], '')
+        self.assertFalse(fresh['from_collection'])
+
+        self.client.post('/', data=dict(
+            language='Cantonese', phrase='我好肚餓', meaning='I am very hungry', romanization='ngo5 hou2 tou5 ngo6'))
+        page = self.client.get('/?language=Cantonese').get_data(as_text=True)
+        self.assertIn('Translate into Cantonese', page)
+        self.assertIn('I am hungry', page)
+        payload = {
+            'phrase': '我肚餓',
+            'meaning': 'I am hungry',
+            'romanization': 'ngo5 tou5 ngo6',
+            'note': 'A direct way to say you are hungry.',
+            'from_collection': False,
+        }
+        with patch('main.generate_translation', return_value=dict(payload)) as generate:
+            response = self.client.post('/languages/Cantonese/translate', data={'text': 'I am hungry'})
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn('我肚餓', html)
+        self.assertIn('我好肚餓', html)
+        self.assertIn('Needs a professional', html)
+        self.assertIn('Mark verified', html)
+        self.assertEqual(generate.call_args.args[1], 'I am hungry')
+        self.assertEqual(self.client.post('/languages/Missing/translate', data={'text': 'I am hungry'}).status_code, 404)
+        self.assertEqual(self.client.post('/languages/Cantonese/translate', data={'text': ''}).status_code, 400)
+
+    def test_missing_translation_is_generated_and_can_be_verified(self):
+        with patch('main.generate_translation', return_value={
+            'phrase': '我肚餓',
+            'meaning': 'I am hungry',
+            'romanization': '',
+            'note': 'Direct.',
+            'from_collection': False,
+        }) as generate:
+            saved = self.client.post('/', data={'language': 'Cantonese', 'meaning': 'I am hungry'})
+            api = self.client.post('/languages/Cantonese/translate', json={'phrase': '我好肚餓'})
+        self.assertEqual(saved.status_code, 303)
+        self.assertEqual(generate.call_args_list[0].kwargs['keep_meaning'], 'I am hungry')
+        self.assertEqual(generate.call_args_list[1].kwargs['keep_phrase'], '我好肚餓')
+        self.assertEqual(api.status_code, 200)
+        body = api.get_json()
+        self.assertEqual(body['review_status'], 'pending')
+        self.assertEqual(body['phrase'], '我好肚餓')
+        self.assertEqual(body['romanization'], 'ngo5 hou2 tou5 ngo6')
+        self.assertIn('ŋɔː˩˧', body['ipa'])
+        phonetic = self.client.post('/languages/Cantonese/phonetic', json={'phrase': '食花生'})
+        self.assertEqual(phonetic.status_code, 200)
+        self.assertEqual(phonetic.get_json()['romanization'], 'sik6 faa1 sang1')
+        self.assertEqual(phonetic.get_json()['ipa'], 'sɪk̚˨ faː˥ sɐŋ˥')
+        self.assertEqual(self.client.post('/languages/Cantonese/phonetic', json={'phrase': 'hea'}).status_code, 404)
+        page = self.client.get('/?language=Cantonese').get_data(as_text=True)
+        self.assertIn('Needs a professional', page)
+        self.assertIn('我肚餓', page)
+        verified = self.client.post(f"/entries/{body['id']}/review")
+        self.assertEqual(verified.status_code, 303)
+        with closing(sqlite3.connect(self.db)) as db:
+            status = db.execute(
+                'SELECT review_status FROM entries WHERE id=?', (body['id'],)).fetchone()[0]
+            lesson_count = db.execute(
+                "SELECT COUNT(*) FROM entries WHERE review_status='verified' AND phrase='我好肚餓'").fetchone()[0]
+        self.assertEqual(status, 'verified')
+        self.assertEqual(lesson_count, 1)
+        lesson = self.client.get('/languages/Cantonese/lesson').get_data(as_text=True)
+        self.assertNotIn('>我肚餓<', lesson)
 
     def test_language_chat_uses_only_that_collection(self):
         page = self.client.get('/?language=Cantonese').get_data(as_text=True)

@@ -21,6 +21,7 @@
 
 {% if selected %}
 <div class="toolbar">
+  <a href="{{ url_for('language_dictionary', language=selected) }}">Dictionary · Ask about words</a>
   <a href="/discover">{{ tr('back_discover') }}</a>
   <a href="#contribute">{{ tr('contribute') }}</a>
   <a href="{{ url_for('language_lesson', language=selected) }}">{{ tr('create_lesson') }}</a>
@@ -30,6 +31,51 @@
 
 <div class="layout {% if not selected %}single{% endif %}">
   <section>
+    {% if selected %}
+    <article class="card translate-box">
+      <p class="eyebrow">{{ tr('translate_generated') }}</p>
+      <h2>{{ tr('translate_title', language=selected) }}</h2>
+      <p class="muted">{{ tr('translate_lead') }}</p>
+      {% if translate_error %}<p class="error" role="alert">{{ translate_error }}</p>{% endif %}
+      <form class="contribute" method="post" action="{{ url_for('translate_language', language=selected) }}">
+        <label for="translate-text">{{ tr('translate_label') }}</label>
+        <input id="translate-text" name="text" value="{{ translate_query or '' }}" maxlength="300" required placeholder="{{ tr('translate_placeholder') }}">
+        <button class="primary" type="submit">{{ tr('translate_button') }}</button>
+      </form>
+      {% if translation %}
+      <div class="example">
+        <p class="eyebrow">{{ tr('translate_you_wrote') }}</p>
+        <p>{{ translation.query }}</p>
+        <p class="eyebrow">{{ selected }}</p>
+        <p class="original">{{ translation.phrase }}</p>
+        {% if translation.romanization %}
+        <p class="romanization"><span>{{ tr('translate_pronunciation') }}</span><br>{{ translation.romanization }}</p>
+        {% endif %}
+        <p class="meaning"><small>Meaning</small><br>{{ translation.meaning }}</p>
+        {% if translation.note %}<p class="context">{{ translation.note }}</p>{% endif %}
+        {% if translation.review_status == 'pending' %}
+        <p class="muted">{{ tr('review_saved') }}</p>
+        <form method="post" action="{{ url_for('review_entry', entry_id=translation.id) }}">
+          <button type="submit">{{ tr('mark_verified') }}</button>
+        </form>
+        {% elif translation.from_collection %}
+        <p class="muted">{{ tr('translate_already_saved') }}</p>
+        {% endif %}
+      </div>
+      {% if translation.related %}
+      <div class="related">
+        <p class="eyebrow">{{ tr('translate_related') }}</p>
+        <ul>
+          {% for item in translation.related %}
+          <li><strong>{{ item.phrase }}</strong> — {{ item.meaning }}{% if item.romanization %} · {{ item.romanization }}{% endif %}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+      {% endif %}
+    </article>
+    {% endif %}
+
     <form class="search" method="get">
       <input type="hidden" name="language" value="{{ selected }}">
       <label class="sr-only" for="q">Search</label>
@@ -44,11 +90,26 @@
       <article class="card">
         <div class="toolbar" style="margin:0 0 0.6rem">
           <span class="tag">{{ entry.language }}</span>
+          {% if entry.review_status == 'pending' %}<span class="tag review">{{ tr('needs_review') }}</span>{% endif %}
           <span class="number">#{{ '%03d'|format(entry.id) }}</span>
+          {% if entry.review_status == 'pending' %}
+          <form method="post" action="{{ url_for('review_entry', entry_id=entry.id) }}">
+            <button type="submit">{{ tr('mark_verified') }}</button>
+          </form>
+          {% endif %}
         </div>
         <p class="eyebrow">Original</p>
         <h3 lang="{{ entry.voice }}">{{ entry.phrase }}</h3>
-        <p class="romanization"><span>Pronunciation</span><br>{{ entry.romanization or '—' }}</p>
+        {% set dict_jp = entry.phrase|dict_jyutping(entry.voice) %}
+        {% set dict_ipa = entry.phrase|dict_ipa(entry.voice) %}
+        <p class="romanization"><span>Pronunciation</span><br>{% if dict_jp %}{{ dict_jp }}{% elif entry.romanization %}{{ entry.romanization }}{% else %}—{% endif %}</p>
+        {% if dict_ipa %}
+        <p class="phonetic-line">[{{ dict_ipa }}]</p>
+        <p class="source-reading">{{ tr('phonetic_source') }}</p>
+        {% elif entry.romanization and entry.voice != 'yue-HK' %}
+        {% set spoken = entry.romanization|ipa %}
+        {% if spoken %}<p class="phonetic-line">[{{ spoken }}]</p>{% endif %}
+        {% endif %}
         <p class="meaning"><small>Meaning</small><br>{{ entry.meaning }}</p>
         {% if entry.example %}
         <div class="example">
@@ -99,7 +160,7 @@
 
     <hr class="soft">
     <h3>Add one phrase</h3>
-    <p class="muted">Manual entry with optional recording.</p>
+    <p class="muted">{{ tr('either_side') }}</p>
     <form action="{{ url_for('index', language=selected) }}" method="post" class="contribute" enctype="multipart/form-data">
       <input type="hidden" name="language" value="{{ selected }}">
       {% for key, label, placeholder in [
@@ -109,8 +170,8 @@
         ('example','Example','Example sentence'),
         ('translation','Example translation','Meaning of the example')
       ] %}
-      <label for="{{ key }}">{{ label }}{% if key in ['phrase','meaning'] %}<span>required</span>{% endif %}</label>
-      <input id="{{ key }}" name="{{ key }}" value="{{ values[key] }}" placeholder="{{ placeholder }}" maxlength="2000" {% if key in ['phrase','meaning'] %}required{% endif %}>
+      <label for="{{ key }}">{{ label }}</label>
+      <input id="{{ key }}" name="{{ key }}" value="{{ values[key] }}" placeholder="{{ placeholder }}" maxlength="2000">
       {% endfor %}
       <label for="context">Context</label>
       <textarea id="context" name="context" rows="3" maxlength="2000" placeholder="When would you use it?">{{ values.context }}</textarea>

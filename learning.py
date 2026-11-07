@@ -72,7 +72,9 @@ def register_learning(app, connect, lock):
         name = request.values.get('language', '')
         with connect() as db:
             language = db.execute('SELECT name FROM languages WHERE name=?', (name,)).fetchone()
-            entries = db.execute('SELECT * FROM entries WHERE language=? COLLATE NOCASE ORDER BY id', (name,)).fetchall()
+            entries = db.execute(
+                "SELECT * FROM entries WHERE language=? COLLATE NOCASE AND review_status='verified' ORDER BY id",
+                (name,)).fetchall()
         if not language:
             return 'Language not found', 404
         error = None
