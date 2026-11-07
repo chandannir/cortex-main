@@ -1,4 +1,5 @@
 """Validate preference-annotation records against the project schema."""
+from annotation.normalize import CATEGORY_ALIASES
 from annotation.scoring import CATEGORY_TARGETS, DIMENSION_WEIGHTS, RUBRIC
 
 SOURCE_LANGUAGES = {'yue-Hant-HK'}
@@ -52,7 +53,7 @@ def validate_record(record):
         raise ValueError(f'Missing fields: {", ".join(missing)}')
 
     _require_str(record, 'id', 'record')
-    category = _require_str(record, 'category', 'record')
+    category = CATEGORY_ALIASES.get(_require_str(record, 'category', 'record'), record['category'])
     if category not in CATEGORY_TARGETS:
         raise ValueError(
             f'category must be one of: {", ".join(sorted(CATEGORY_TARGETS))}.')

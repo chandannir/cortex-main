@@ -7,7 +7,7 @@ from annotation.scoring import (
     weighted_score,
 )
 from annotation.validate import validate_record
-from annotation.export_dpo import to_dpo_record
+from annotation.export_dpo import to_dpo_record, to_training_pair
 
 __all__ = [
     'DIMENSION_WEIGHTS',
@@ -17,4 +17,5 @@ __all__ = [
     'weighted_score',
     'validate_record',
     'to_dpo_record',
+    'to_training_pair',
 ]

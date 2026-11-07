@@ -14,14 +14,26 @@ RUBRIC = {
     1: 'Incorrect; literal mistranslation or reversed meaning.',
 }
 
-# Target pair counts for a 1,000-example corpus.
+# Target pair counts for the 3,300-example preference corpus.
 CATEGORY_TARGETS = {
-    'informal_vocabulary': 200,
-    'sarcasm': 250,
-    'cultural_expressions': 200,
-    'emotional_expressions': 200,
-    'slang_internet': 150,
+    'sarcasm_and_irony': 500,
+    'passive_aggression': 400,
+    'informal_slang': 500,
+    'figurative_idioms': 500,
+    'emotional_expressions': 400,
+    'hong_kong_culture': 400,
+    'politeness_face': 300,
+    'internet_slang': 300,
 }
+
+ERROR_TYPES = (
+    'literalism',
+    'tone_inversion',
+    'cultural_omission',
+    'emotional_flattening',
+    'register_mismatch',
+    'context_blindness',
+)
 
 
 def weighted_score(dimensions):

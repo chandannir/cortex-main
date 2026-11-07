@@ -2,20 +2,25 @@
 from annotation.scoring import CATEGORY_TARGETS
 
 CATEGORY_ALIASES = {
-    'sarcasm': 'sarcasm',
-    'sarcasm_and_irony': 'sarcasm',
-    'dismissive_sarcasm': 'sarcasm',
-    'sarcastic_question': 'sarcasm',
-    'mocking_irony': 'sarcasm',
-    'sarcastic_reassurance': 'sarcasm',
-    'passive_aggression': 'emotional_expressions',
-    'slang': 'slang_internet',
-    'idiom': 'cultural_expressions',
-    'social_behaviour': 'cultural_expressions',
-    'informal_vocabulary': 'informal_vocabulary',
-    'cultural_expressions': 'cultural_expressions',
+    'sarcasm': 'sarcasm_and_irony',
+    'sarcasm_and_irony': 'sarcasm_and_irony',
+    'dismissive_sarcasm': 'sarcasm_and_irony',
+    'sarcastic_question': 'sarcasm_and_irony',
+    'mocking_irony': 'sarcasm_and_irony',
+    'sarcastic_reassurance': 'sarcasm_and_irony',
+    'passive_aggression': 'passive_aggression',
+    'slang': 'informal_slang',
+    'informal_vocabulary': 'informal_slang',
+    'informal_slang': 'informal_slang',
+    'idiom': 'figurative_idioms',
+    'cultural_expressions': 'figurative_idioms',
+    'figurative_idioms': 'figurative_idioms',
+    'social_behaviour': 'figurative_idioms',
     'emotional_expressions': 'emotional_expressions',
-    'slang_internet': 'slang_internet',
+    'hong_kong_culture': 'hong_kong_culture',
+    'politeness_face': 'politeness_face',
+    'slang_internet': 'internet_slang',
+    'internet_slang': 'internet_slang',
 }
 
 
@@ -46,7 +51,7 @@ def normalize_seed_record(record):
     category = record.get('category', 'sarcasm')
     mapped = CATEGORY_ALIASES.get(category, category)
     if mapped not in CATEGORY_TARGETS:
-        mapped = 'sarcasm'
+        mapped = 'sarcasm_and_irony'
 
     tags = record.get('evaluation_tags') or []
     return {

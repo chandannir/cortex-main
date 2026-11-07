@@ -105,6 +105,24 @@ class LibraryTests(unittest.TestCase):
         self.assertIn('/audio/', page)
         self.assertIn('Replace demo audio', page)
 
+    def test_language_chat_uses_only_that_collection(self):
+        page = self.client.get('/?language=Cantonese').get_data(as_text=True)
+        self.assertIn('Ask about Cantonese', page)
+        self.assertNotIn('Ask about Cantonese', self.client.get('/discover').get_data(as_text=True))
+        with patch('main.answer_collection_question', return_value='我 means I / me.') as answer:
+            response = self.client.post('/languages/Cantonese/chat', json={
+                'question': 'What does 我 mean?',
+                'history': [{'role': 'user', 'content': 'Earlier question'}],
+            })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()['reply'], '我 means I / me.')
+        self.assertEqual(answer.call_args.args[0], 'Cantonese')
+        self.assertTrue(any(entry['phrase'] == '我' for entry in answer.call_args.args[1]))
+        self.assertEqual(self.client.post('/languages/Cantonese/chat', json={
+            'question': ''}).status_code, 400)
+        self.assertEqual(self.client.post('/languages/Missing/chat', json={
+            'question': 'Hello'}).status_code, 404)
+
     def test_settings_persist(self):
         response = self.client.post('/settings', data={'ui_language': 'fr'})
         self.assertEqual(response.status_code, 200)

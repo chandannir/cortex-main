@@ -22,6 +22,26 @@
     <span>{{ tr('brand_sub') }}</span>
     <span>{% block footer_note %}Local profile · Preferences persist on this device{% endblock %}</span>
   </footer>
+  {% block chat_language %}{% endblock %}
+  {% set chat_language = self.chat_language()|trim %}
+  {% if chat_language %}
+  <div class="chat-widget" data-language="{{ chat_language }}" data-endpoint="{{ url_for('language_chat', language=chat_language) }}">
+    <button type="button" class="chat-toggle" aria-expanded="false" aria-controls="language-chat">{{ tr('ask_about', language=chat_language) }}</button>
+    <section id="language-chat" class="chat-panel" hidden>
+      <header>
+        <strong>{{ chat_language }}</strong>
+        <p>{{ tr('chat_lead') }}</p>
+      </header>
+      <div class="chat-log" role="log" aria-live="polite"></div>
+      <form class="chat-form">
+        <label class="sr-only" for="chat-question">{{ tr('chat_placeholder') }}</label>
+        <input id="chat-question" name="question" maxlength="500" placeholder="{{ tr('chat_placeholder') }}" required>
+        <button type="submit">{{ tr('chat_send') }}</button>
+      </form>
+    </section>
+  </div>
+  {% endif %}
+  <script src="{{ url_for('static', filename='chat.js') }}" defer></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

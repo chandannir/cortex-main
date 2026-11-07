@@ -1,6 +1,12 @@
 """Export annotated preference pairs into a DPO-compatible training record."""
+from annotation.normalize import normalize_seed_record
 from annotation.scoring import delta_s, preference_priority, weighted_score
 from annotation.validate import validate_record
+
+TRAINING_PROMPT = (
+    'Translate the Cantonese expression into natural English. '
+    'Explain its cultural context and emotional connotation.'
+)
 
 
 def _prompt(record):
@@ -97,6 +103,33 @@ def to_dpo_record(record, require_priority=False):
             'confidence': record.get('confidence'),
             'error_type': record['rejected'].get('error_type', []),
         },
+    }
+
+
+def _plain_completion(side):
+    translation = (side.get('translation') or '').strip()
+    explanation = (side.get('explanation') or '').strip()
+    if explanation and translation and translation[-1] not in '.!?':
+        translation += '.'
+    if explanation and explanation[-1] not in '.!?':
+        explanation += '.'
+    return f'{translation} {explanation}'.strip() if explanation else translation
+
+
+def to_training_pair(record):
+    """Convert one annotation into the simplified DPO training object."""
+    record = normalize_seed_record(record)
+    validate_record(record)
+    prompt = (
+        f'{TRAINING_PROMPT}\n\n'
+        f"Expression: {record['expression']}\n"
+        f"Jyutping: {record['jyutping']}\n"
+        f"Context: {record['context']}"
+    )
+    return {
+        'prompt': prompt,
+        'chosen': _plain_completion(record['chosen']),
+        'rejected': _plain_completion(record['rejected']),
     }
 
 

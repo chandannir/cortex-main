@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% block chat_language %}{{ selected or '' }}{% endblock %}
 {% block title %}{{ selected or 'Commonword' }} · Commonword{% endblock %}
 {% block content %}
 <section class="intro">

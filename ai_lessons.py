@@ -200,6 +200,42 @@ def generate_study_goals(sessions, minutes, level='new', preferred='English'):
         raise ValueError('The AI returned an invalid plan. Your basic schedule is saved; you can retry AI coaching.') from None
 
 
+def answer_collection_question(language, entries, question, history, preferred='English'):
+    """Answer one question using only the supplied language collection."""
+    packed = []
+    for entry in entries[:250]:
+        packed.append({
+            'phrase': entry['phrase'],
+            'romanization': entry['romanization'],
+            'meaning': entry['meaning'],
+            'context': (entry['context'] or '')[:180],
+        })
+    prior = []
+    for turn in history[-6:]:
+        role = turn.get('role')
+        content = (turn.get('content') or '').strip()
+        if role in ('user', 'assistant') and content:
+            prior.append({'role': role, 'content': content[:500]})
+    source = {
+        'language': language,
+        'entry_count': len(entries),
+        'entries_included': len(packed),
+        'entries': packed,
+        'recent_turns': prior,
+        'question': question,
+    }
+    instruction = (
+        f'You are a tutor for the {language} collection only. Reply in {preferred}. '
+        'Answer only from the supplied entries. '
+        'If the question is about another language, general knowledge, or a phrase that is not listed, '
+        'refuse in one sentence and ask them to ask about this collection. '
+        'Do not invent phrases, pronunciation, or cultural facts. '
+        'When you use an entry, quote its original phrase. '
+        'Keep the reply under 120 words in plain text.'
+    )
+    return request_text(source, instruction, max_tokens=350)
+
+
 def lesson_from_storage(raw):
     """Load a cached lesson; support legacy plain-text rows."""
     if not raw:

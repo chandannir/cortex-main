@@ -6,13 +6,13 @@ import os
 import sqlite3
 import uuid
 from threading import Lock
-from ai_lessons import generate_language_lesson, lesson_from_storage
+from ai_lessons import answer_collection_question, generate_language_lesson, lesson_from_storage
 from document_import import TEXT_SUFFIXES, decode_upload, extract_entries_from_document
 from learning import register_learning
 from preferences import LEVELS, LANGUAGES
 from i18n import UI_LANGUAGES, explanation_for, t
 from phonetics import jyutping_to_ipa
-from flask import Flask, g, redirect, render_template, request, url_for, send_from_directory
+from flask import Flask, g, jsonify, redirect, render_template, request, url_for, send_from_directory
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_SETTINGS = {
@@ -197,6 +197,38 @@ def create_app(database=None):
         return render_template(
             'lesson.html', language=language, entries=entries, lesson=lesson,
             error=error, level=level, preferred=preferred), status
+
+    @app.post('/languages/<path:language>/chat')
+    def language_chat(language):
+        payload = request.get_json(silent=True) or {}
+        question = (payload.get('question') or '').strip()
+        history = payload.get('history') or []
+        if not question or len(question) > 500:
+            return jsonify(error='Ask a question under 500 characters.'), 400
+        if not isinstance(history, list) or len(history) > 12:
+            return jsonify(error='The conversation is too long. Start again.'), 400
+        preferred = g.settings['explanation_language']
+        with connect() as db:
+            language_row = db.execute(
+                'SELECT name FROM languages WHERE name=?', (language,)).fetchone()
+            entries = db.execute(
+                '''SELECT phrase, romanization, meaning, context FROM entries
+                   WHERE language=? COLLATE NOCASE ORDER BY id''',
+                (language,)).fetchall() if language_row else []
+        if not language_row:
+            return jsonify(error='Language not found'), 404
+        if not entries:
+            return jsonify(error='Add a phrase to this language before asking about it.'), 400
+        if not lesson_lock.acquire(blocking=False):
+            return jsonify(error='Another AI request is running. Try again shortly.'), 429
+        try:
+            reply = answer_collection_question(
+                language_row['name'], entries, question, history, preferred)
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 502
+        finally:
+            lesson_lock.release()
+        return jsonify(reply=reply, language=language_row['name'])
 
     @app.post('/languages/<path:language>/lesson/delete')
     def delete_language_lesson(language):

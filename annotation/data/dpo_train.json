@@ -1,0 +1,57 @@
+[
+  {
+    "prompt": "Translate the Cantonese expression into natural English. Explain its cultural context and emotional connotation.\n\nExpression: 你好嘢喎！\nJyutping: nei5 hou2 je5 wo3\nContext: Said to someone who has made an obviously foolish decision.",
+    "chosen": "Well, aren't you clever! A sarcastic remark implying that the person's decision was foolish. The exaggerated praise reverses the literal positive meaning.",
+    "rejected": "You are very capable! Treats the expression as sincere praise and misses the sarcastic context."
+  },
+  {
+    "prompt": "Translate the Cantonese expression into natural English. Explain its cultural context and emotional connotation.\n\nExpression: 你慢慢啦。\nJyutping: nei5 maan6 maan6 laa1\nContext: Someone has been waiting for a friend who is extremely late.",
+    "chosen": "Take your time. I'm clearly not in a hurry. The apparent permission to proceed slowly communicates irritation and impatience.",
+    "rejected": "Please proceed at your own pace. Interprets the sentence as a neutral and considerate offer."
+  },
+  {
+    "prompt": "Translate the Cantonese expression into natural English. Explain its cultural context and emotional connotation.\n\nExpression: 得啦你。\nJyutping: dak1 laa1 nei5\nContext: A friend keeps boasting about their achievements.",
+    "chosen": "Yeah, yeah, enough already. A dismissive response indicating that the speaker has heard enough of the other person's boasting.",
+    "rejected": "You can do it! Confuses the expression with encouragement."
+  },
+  {
+    "prompt": "Translate the Cantonese expression into natural English. Explain its cultural context and emotional connotation.\n\nExpression: 有冇搞錯呀？\nJyutping: jau5 mou5 gaau2 co3 aa3\nContext: Someone discovers that a restaurant has charged them twice.",
+    "chosen": "You've got to be kidding me! An exclamation of disbelief and frustration, questioning the absurdity of the situation.",
+    "rejected": "Did you make a mistake? Reduces an emotionally charged idiomatic expression to a literal question."
+  },
+  {
+    "prompt": "Translate the Cantonese expression into natural English. Explain its cultural context and emotional connotation.\n\nExpression: 叻唔切。\nJyutping: lek1 m4 cit3\nContext: A person constantly demonstrates their supposed superiority.",
+    "chosen": "Oh, look at you, showing off how clever you are. A mocking description of someone displaying excessive confidence or intelligence, often to the annoyance of others.",
+    "rejected": "Extremely intelligent. Treats the phrase as an objective compliment rather than a socially critical remark."
+  },
+  {
+    "prompt": "Translate the Cantonese expression into natural English. Explain its cultural context and emotional connotation.\n\nExpression: 吹水\nJyutping: ceoi1 seoi2\nContext: Friends are chatting casually about their weekend experiences.",
+    "chosen": "To chat, shoot the breeze, or talk nonsense. A versatile Cantonese expression for casual conversation, sometimes involving exaggeration or boastful storytelling.",
+    "rejected": "To blow water. A literal translation that has no equivalent conversational meaning in English."
+  },
+  {
+    "prompt": "Translate the Cantonese expression into natural English. Explain its cultural context and emotional connotation.\n\nExpression: hea\nJyutping: he4\nContext: A student spends the entire afternoon doing nothing productive.",
+    "chosen": "To laze around or just kill time. A Hong Kong Cantonese slang expression describing relaxed, unproductive, or aimless activity.",
+    "rejected": "To be very busy. Reverses the expression's intended meaning."
+  },
+  {
+    "prompt": "Translate the Cantonese expression into natural English. Explain its cultural context and emotional connotation.\n\nExpression: 食檸檬\nJyutping: sik6 ning4 mung1\nContext: Someone asks another person out, but gets rejected.",
+    "chosen": "To get rejected or turned down. Literally meaning 'to eat a lemon', the expression figuratively describes rejection, particularly romantic rejection.",
+    "rejected": "To eat something sour. Only describes the literal image and loses the idiomatic meaning."
+  },
+  {
+    "prompt": "Translate the Cantonese expression into natural English. Explain its cultural context and emotional connotation.\n\nExpression: 扮嘢\nJyutping: baan6 je5\nContext: A friend suddenly adopts an exaggerated sophisticated personality in front of strangers.",
+    "chosen": "To put on an act or pretend to be something you're not. Describes artificial behaviour intended to impress others or create a particular impression.",
+    "rejected": "To perform a theatrical role. Confuses everyday social pretence with professional acting."
+  },
+  {
+    "prompt": "Translate the Cantonese expression into natural English. Explain its cultural context and emotional connotation.\n\nExpression: 食花生\nJyutping: sik6 faa1 saang1\nContext: People gather to watch two colleagues argue without getting involved.",
+    "chosen": "To sit back and enjoy the drama as a spectator. Literally 'eating peanuts', this expression describes watching an entertaining conflict without participating.",
+    "rejected": "To eat peanuts while watching television. Focuses on the literal food reference rather than the metaphorical social behaviour."
+  },
+  {
+    "prompt": "Translate the Cantonese expression into natural English. Explain its cultural context and emotional connotation.\n\nExpression: 你好叻呀！\nJyutping: nei5 hou2 lek1 aa3\nContext: A speaker sarcastically addresses someone who has made an obvious mistake while boasting.",
+    "chosen": "Wow, aren't you clever! The expression is sarcastic rather than sincere praise. The speaker uses exaggerated approval to criticize someone's lack of judgment.",
+    "rejected": "You are very smart! This interpretation treats the expression as genuine praise and overlooks its sarcastic function."
+  }
+]
